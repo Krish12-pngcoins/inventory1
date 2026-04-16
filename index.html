@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KSNumismatics LLC | ERP System</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1565c0; --dark: #1e2a3a; --success: #2e7d32; --danger: #c62828;
+            --bg: #f4f7f6; --surface: #ffffff; --border: #d1d9e0; --text: #24292f;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+        /* LOGIN */
+        #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--dark); position: fixed; inset: 0; z-index: 9999; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; width: 350px; text-align: center; }
+
+        /* LAYOUT */
+        #app { display: none; grid-template-columns: 240px 1fr; min-height: 100vh; }
+        nav { background: var(--dark); color: white; padding: 20px 0; }
+        .nav-link { padding: 15px 25px; cursor: pointer; color: #adb5bd; transition: 0.2s; }
+        .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: white; }
+        
+        header { background: white; height: 60px; display: flex; align-items: center; padding: 0 30px; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+        main { padding: 30px; }
+
+        /* TABLES & CARDS */
+        .card { background: white; border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid var(--border); }
+        td { padding: 12px; border-bottom: 1px solid var(--border); }
+
+        /* BUTTONS */
+        .btn { padding: 10px 18px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; }
+        .btn-p { background: var(--primary); color: white; }
+        .btn-s { background: var(--success); color: white; }
+        
+        /* MODAL */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: white; width: 600px; padding: 30px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 5px; }
+
+        @media print {
+            .no-print { display: none; }
+            #printable-barcode { display: block !important; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div class="login-box">
+        <h1>KSN Admin</h1>
+        <input type="password" id="pass" placeholder="Password">
+        <button class="btn btn-p" style="width:100%; margin-top:10px;" onclick="login()">Sign In</button>
+    </div>
+</div>
+
+<div id="app">
+    <nav class="no-print">
+        <div style="padding:0 25px 20px; font-weight:bold;">KSNumismatics LLC</div>
+        <div class="nav-link active" onclick="showTab('inventory')">📦 Inventory</div>
+        <div class="nav-link" onclick="showTab('sold')">✅ Sold Items</div>
+        <div class="nav-link" onclick="showTab('customers')">👥 Customers</div>
+        <div class="nav-link" onclick="showTab('sales')">📊 View Sales</div>
+        <div class="nav-link" onclick="showTab('invoices')">🧾 Invoices</div>
+    </nav>
+
+    <div style="overflow-y: auto;">
+        <header class="no-print">
+            <h2 id="tab-title">Inventory</h2>
+            <div style="margin-left:auto;">
+                <button class="btn btn-p" onclick="openModal('coin-modal')">+ Add Coin</button>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <div id="tab-inventory" class="tab-content">
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Barcode</th><th>Name</th><th>Cost</th><th>Bought Date</th><th>Source</th><th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-sold" class="tab-content" style="display:none;">
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th><th>Cost</th><th>Sold Price</th><th>Profit</th><th>Buyer</th><th>Date Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sold-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-sales" class="tab-content" style="display:none;">
+                <div class="card">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+
+            <div id="tab-customers" class="tab-content" style="display:none;">
+                <div class="card">
+                    <button class="btn btn-p" onclick="openModal('cust-modal')">+ New Customer</button>
+                    <table style="margin-top:20px;">
+                        <thead><tr><th>Name</th><th>Contact</th><th>Total Purchases</th></tr></thead>
+                        <tbody id="cust-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div id="coin-modal" class="modal-bg">
+    <div class="modal">
+        <h3>Add Coin to Inventory</h3>
+        <div class="form-grid">
+            <div><label>Coin Name</label><input type="text" id="c-name"></div>
+            <div><label>Year</label><input type="number" id="c-year"></div>
+            <div><label>Cost Paid</label><input type="number" id="c-cost"></div>
+            <div><label>Date Bought</label><input type="date" id="c-date"></div>
+            <div><label>Source</label><input type="text" id="c-source"></div>
+            <div><label>Country</label><input type="text" id="c-country"></div>
+        </div>
+        <div style="margin-top:20px;">
+            <button class="btn btn-p" onclick="saveCoin()">Save & Generate Barcode</button>
+            <button onclick="closeModals()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="printable-barcode" style="display:none;">
+    <svg id="barcode-img"></svg>
+    <p id="barcode-name"></p>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('ksn_data')) || { inventory: [], sold: [], customers: [] };
+
+    function login() {
+        if(document.getElementById('pass').value === 'admin123') {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'grid';
+            renderAll();
+        }
+    }
+
+    function showTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        document.getElementById('tab-' + tab).style.display = 'block';
+        document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        if(tab === 'sales') renderSalesChart();
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModals() { document.querySelectorAll('.modal-bg').forEach(m => m.style.display = 'none'); }
+
+    function saveCoin() {
+        const id = 'KSN' + Date.now().toString().slice(-6);
+        const coin = {
+            id,
+            name: document.getElementById('c-name').value,
+            cost: parseFloat(document.getElementById('c-cost').value),
+            date: document.getElementById('c-date').value,
+            source: document.getElementById('c-source').value,
+            status: 'Available'
+        };
+        db.inventory.push(coin);
+        updateDB();
+        renderAll();
+        closeModals();
+    }
+
+    function markSold(id) {
+        const price = prompt("Enter Sold Price:");
+        const buyer = prompt("Enter Buyer Name:");
+        if(!price) return;
+
+        const index = db.inventory.findIndex(c => c.id === id);
+        const coin = db.inventory.splice(index, 1)[0];
+        
+        const soldEntry = {
+            ...coin,
+            soldPrice: parseFloat(price),
+            buyer: buyer || 'Unknown',
+            dateSold: new Date().toISOString().split('T')[0],
+            profit: parseFloat(price) - coin.cost
+        };
+        
+        db.sold.push(soldEntry);
+        updateDB();
+        renderAll();
+    }
+
+    function printBarcode(id, name) {
+        JsBarcode("#barcode-img", id, { format: "CODE128", width: 2, height: 40 });
+        document.getElementById('barcode-name').innerText = name;
+        window.print();
+    }
+
+    function updateDB() { localStorage.setItem('ksn_data', JSON.stringify(db)); }
+
+    function renderAll() {
+        const invBody = document.getElementById('inventory-list');
+        invBody.innerHTML = '';
+        db.inventory.forEach(c => {
+            invBody.innerHTML += `
+                <tr>
+                    <td><button onclick="printBarcode('${c.id}', '${c.name}')">🖨️ ${c.id}</button></td>
+                    <td>${c.name}</td>
+                    <td>$${c.cost}</td>
+                    <td>${c.date}</td>
+                    <td>${c.source}</td>
+                    <td><button class="btn btn-s" onclick="markSold('${c.id}')">Sold</button></td>
+                </tr>
+            `;
+        });
+
+        const soldBody = document.getElementById('sold-list');
+        soldBody.innerHTML = '';
+        db.sold.forEach(s => {
+            soldBody.innerHTML += `
+                <tr>
+                    <td>${s.name}</td>
+                    <td>$${s.cost}</td>
+                    <td>$${s.soldPrice}</td>
+                    <td style="color:green">+$${s.profit}</td>
+                    <td>${s.buyer}</td>
+                    <td>${s.dateSold}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderSalesChart() {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        const data = db.sold.reduce((acc, curr) => {
+            const month = curr.dateSold.slice(0, 7);
+            acc[month] = (acc[month] || 0) + curr.profit;
+            return acc;
+        }, {});
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data),
+                datasets: [{ label: 'Monthly Profit ($)', data: Object.values(data), backgroundColor: '#1565c0' }]
+            }
+        });
+    }
+</script>
+</body>
+</html>
